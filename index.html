@@ -47,6 +47,16 @@
           return JSON.parse(localStorage.getItem(key));
         },
       };
+      //생성 버튼 눌렀을 때 fetchCat 사용할 예정
+      const fetchCat = async (text) => {
+        const OPEN_API_DOMAIN = "https://cataas.com";
+        const response = await fetch(
+          `${OPEN_API_DOMAIN}/cat/says/${text}?json=true`
+        );
+        const responseJson = await response.json();
+        //return `${OPEN_API_DOMAIN}/${responseJson.url}`;
+        return `${OPEN_API_DOMAIN}/cat/${responseJson._id}/says/${text}`;
+      };
       console.log("야옹");
 
       function CatItem(props) {
@@ -58,6 +68,16 @@
       }
 
       function Favorites({ favorites }) {
+        if (favorites.length == 0) {
+          //조건부 렌더링. 좋아요한 사진이 없을때만 보이기
+          return (
+            <div>
+              <br />
+              사진 위 하트를 눌러 고양이 사진을 저장해봐요!
+            </div>
+          );
+        }
+
         return (
           <ul className="favorites">
             {favorites.map((cat) => (
@@ -67,11 +87,12 @@
         );
       }
 
-      const MainCard = ({ img, onHeartClick }) => {
+      const MainCard = ({ img, onHeartClick, alreadyFavorite }) => {
+        const heartIcon = alreadyFavorite ? "💖" : "🤍";
         return (
           <div className="main-card">
             <img src={img} alt="고양이" width="400" />
-            <button onClick={onHeartClick}>🤍</button>
+            <button onClick={onHeartClick}>{heartIcon}</button>
           </div>
         );
       };
@@ -111,7 +132,7 @@
             setErrorMessage("글씨를 입력해 주세요");
             return;
           }
-          updateMainCat();
+          updateMainCat(value); //위에 const value가 input값. 이걸 넘겨줌
         }
 
         return (
@@ -133,23 +154,39 @@
         const CAT2 = "https://cataas.com/cat/BxqL2EjFmtxDkAm2/says/inflearn";
         const CAT3 = "https://cataas.com/cat/18MD6byVC1yKGpXp/says/JavaScript";
 
-        const [counter, setCounter] = React.useState(
-          jsonLocalStorage.getItem("counter")
-        );
+        const [counter, setCounter] = React.useState(() => {
+          return jsonLocalStorage.getItem("counter");
+        });
         const [mainCat, setMainCat] = React.useState(CAT1);
-        const [favorites, setFavorites] = React.useState(
-          jsonLocalStorage.getItem("favorites") || [] // 앞에께 없으면 뒤에꺼를 써라 라는 뜻
-        );
+
+        const [favorites, setFavorites] = React.useState(() => {
+          return jsonLocalStorage.getItem("favorites") || []; // 앞에께 없으면 뒤에꺼를 써라 라는 뜻
+        });
 
         //console.log("카운터 ", counter);
         //console.log("카드카운터 ", mainCat);
 
-        function updateMainCat() {
-          //console.log("폼 전송됨");
-          setMainCat(CAT2);
-          const nextCounter = counter + 1;
-          setCounter(nextCounter);
-          jsonLocalStorage.setItem("counter", nextCounter);
+        const alreadyFavorite = favorites.includes(mainCat);
+
+        async function setInitialCat() {
+          const newCat = await fetchCat("First cat");
+          setMainCat(newCat);
+        }
+
+        //setInitialCat()를 함수로 안감싸고 그냥쓰면 무한으로 실행됨
+        React.useEffect(() => {
+          setInitialCat();
+        }, []);
+
+        async function updateMainCat(value) {
+          const newCat = await fetchCat(value);
+          setMainCat(newCat);
+
+          setCounter((prev) => {
+            const nextCounter = prev + 1;
+            jsonLocalStorage.setItem("counter", nextCounter);
+            return nextCounter;
+          });
         }
 
         function handleHeartClick() {
@@ -158,12 +195,18 @@
           jsonLocalStorage.setItem("favorites", nextFavorites);
         }
 
+        const counterTitle = counter == null ? "" : counter + "번째 ";
+
         //{} jsx내에서 변수쓸 때 사용
         return (
           <div>
-            <Title>{counter}번째 고양이 가라사대</Title>
+            <Title>{counterTitle}고양이 가라사대</Title>
             <Form updateMainCat={updateMainCat} />
-            <MainCard img={mainCat} onHeartClick={handleHeartClick} />
+            <MainCard
+              img={mainCat}
+              onHeartClick={handleHeartClick}
+              alreadyFavorite={alreadyFavorite}
+            />
             <Favorites favorites={favorites} />
           </div>
         );
@@ -173,6 +216,13 @@
 
       //ReactDOM.render(catItem, 여기다가그려); 리액트17이하
       ReactDOM.createRoot(여기다가그려).render(<App />); //리액트18일때. 이거사용해야함.
+      /*  fetch("https://cataas.com/cat?json=true")
+        .then(function (response) {
+          return response.json();
+        })
+        .then(function (myJson) {
+          console.log(JSON.stringify(myJson));
+        }); */
     </script>
   </body>
 </html>
